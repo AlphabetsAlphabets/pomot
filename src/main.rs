@@ -1,5 +1,5 @@
 use eframe;
-use mirai::App;
+use pomot::App;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]

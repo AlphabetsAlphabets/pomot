@@ -892,15 +892,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mirai"
-version = "0.1.0"
-dependencies = [
- "eframe",
- "egui",
- "serde",
-]
-
-[[package]]
 name = "ndk"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1161,6 +1152,15 @@ dependencies = [
  "crc32fast",
  "flate2",
  "miniz_oxide",
+]
+
+[[package]]
+name = "pomot"
+version = "0.1.0"
+dependencies = [
+ "eframe",
+ "egui",
+ "serde",
 ]
 
 [[package]]
