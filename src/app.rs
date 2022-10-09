@@ -1,10 +1,5 @@
 use egui::{Color32, RichText};
-use std::{time::Duration};
-
-enum Warning {
-    None,
-    Message(String),
-}
+use std::{time::{Duration, Instant}};
 
 enum Screen {
     Start,
@@ -24,8 +19,8 @@ fn start_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) 
             );
             
             match &app.warning {
-                Warning::None => ui.label("\n\n\n"),
-                Warning::Message(msg) => {
+                None => ui.label("\n\n\n"),
+                Some(msg) => {
                     let msg = format!("\n{}\n", msg);
                     ui.label(msg)
                 }
@@ -69,14 +64,31 @@ fn start_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) 
                     app.work = "".to_string();
                     app.rest = "".to_string();
                     app.sessions = "".to_string();
-                    app.warning = Warning::Message("The fields can't be empty, they also can't contain letters, if for some reason you tried to enter a negative number it didn't work either :3.".to_string());
+                    app.warning = Some("The fields can't be empty, they also can't contain letters, if for some reason you tried to enter a negative number it didn't work either :3.".to_string());
                 } else if wrk == 0 || rst == 0 || sess == 0 {
                     app.work = "".to_string();
                     app.rest = "".to_string();
                     app.sessions = "".to_string();
-                    app.warning = Warning::Message("Work, rest or sessions can't be empty or 0 buddy :3".to_string());
+                    app.warning = Some("Work, rest or sessions can't be empty or 0 buddy :3".to_string());
                 } else {
-                    app.warning = Warning::None;
+                    // Convert input to duration
+
+                    let work_time: u64 = app.work.parse().unwrap();
+                    let rest_time: u64 = app.rest.parse().unwrap();
+                    let session_count: i8 = app.sessions.parse().unwrap();
+
+                    let work_time = Duration::from_secs(work_time * 60);
+                    let rest_time = Duration::from_secs(rest_time * 60);
+
+                    // Instant is started here because the value doesn't get reset every frame.
+                    // As opposed to setting it in `work_screen`.
+                    app.now = Some(Instant::now());
+
+                    app.work_time = work_time;
+                    app.rest_time = rest_time;
+                    app.session_count = session_count;
+
+                    app.warning = None;
                     app.screen = Screen::Working;
                 }
 
@@ -91,33 +103,114 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.heading("Pomodoro Timer");
             ui.hyperlink_to(
-                "Made by AlphabetsAlphabets",
+                "Made by AlphabetsAlphavets",
                 "https://github.com/AlphabetsAlphabets",
             );
 
             ui.label("\n\n\n");
 
-            if ui
-                .button(RichText::new("Pause").color(Color32::LIGHT_BLUE))
-                .clicked()
-            {
-                println!("Paused.");
+            let elapsed = app.now.unwrap().elapsed().as_secs();
+            let total_time = app.work_time.as_secs();
+            let time_left = total_time.saturating_sub(elapsed);
+            if time_left == 0 {
+                app.session_count -= 1;
+                if app.session_count == 0 {
+                    app.screen = Screen::Finish;
+                }
+
+                app.screen = Screen::Rest;
             }
 
-            if ui
-                .button(RichText::new("Stop")
-                .color(Color32::LIGHT_BLUE))
-                .on_hover_text("Stops the pomodoro sesssion and brings you back to the start screen.")
-                .clicked()
-            {
-                app.screen = Screen::Start;
-                println!("Stopped.");
-            }
+            let time_left: String = if time_left >= 60 {
+                format!("{}m", (time_left / 60))
+            } else {
+                format!("{}s", (time_left))
+            };
+
+            // Updates only show as long as there is an action made
+            // Which includes typing, moving the mouse, etc.
+            // The timer still sticks, it just won't update visually. 
+            // The fix is to request egui to repaint the UI.
+            ui.ctx().request_repaint();
+            ui.heading(time_left);
+
+            ui.label("\n\n\n");
+            ui.columns(2, |columns| {
+                let pause = columns[0]
+                    .button(RichText::new("Pause")
+                    .color(Color32::LIGHT_BLUE));
+
+                if pause.clicked() {
+                    println!("Paused!");
+                }
+
+                let stop = columns[1]
+                    .button(RichText::new("Stop")
+                    .color(Color32::LIGHT_BLUE));
+
+                if stop.clicked() {
+                    app.screen = Screen::Start;
+                }
+            });
+
         });
     });
 }
 
-fn rest_screen() {}
+fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        // The central panel the region left after adding TopPanel's and SidePanel's
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.heading("Pomodoro Timer");
+            ui.hyperlink_to(
+                "Made by AlphabetsAlphavets",
+                "https://github.com/AlphabetsAlphabets",
+            );
+
+            let elapsed = app.now.unwrap().elapsed().as_secs();
+            let total_time = app.work_time.as_secs();
+            let time_left = total_time.saturating_sub(elapsed);
+            if time_left == 0 {
+                app.screen = Screen::Working;
+            }
+
+            ui.label("\n\n\n");
+
+            let time_left: String = if time_left >= 60 {
+                format!("{}m", (time_left / 60))
+            } else {
+                format!("{}s", (time_left))
+            };
+
+            // Updates only show as long as there is an action made
+            // Which includes typing, moving the mouse, etc.
+            // The timer still sticks, it just won't update visually. 
+            // The fix is to request egui to repaint the UI.
+            ui.ctx().request_repaint();
+            ui.heading(time_left);
+
+            ui.label("\n\n\n");
+            ui.columns(2, |columns| {
+                let pause = columns[0]
+                    .button(RichText::new("Pause")
+                    .color(Color32::LIGHT_BLUE));
+
+                if pause.clicked() {
+                    println!("Paused!");
+                }
+
+                let stop = columns[1]
+                    .button(RichText::new("Stop")
+                    .color(Color32::LIGHT_BLUE));
+
+                if stop.clicked() {
+                    app.screen = Screen::Start;
+                }
+            });
+
+        });
+    });
+}
 
 fn finish_screen() {}
 
@@ -130,7 +223,15 @@ pub struct App {
     sessions: String,
 
     #[serde(skip)]
-    warning: Warning,
+    now: Option<Instant>,
+    #[serde(skip)]
+    work_time: Duration,
+    #[serde(skip)]
+    rest_time: Duration,
+    #[serde(skip)]
+    warning: Option<String>,
+    #[serde(skip)]
+    session_count: i8,
     #[serde(skip)]
     screen: Screen,
 }
@@ -138,11 +239,15 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            warning: Warning::None,
+            now: None,
+            warning: None,
             screen: Screen::Start,
             work: "25".to_string(),
             rest: "10".to_string(),
             sessions: "4".to_string(),
+            work_time: Duration::from_secs(1 * 60),
+            rest_time: Duration::from_secs(1 * 60),
+            session_count: 4,
         }
     }
 }
@@ -173,18 +278,10 @@ impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self {
-            warning,
-            sessions,
-            work,
-            rest,
-            screen,
-        } = self;
-
-        match screen {
+        match self.screen {
             Screen::Start => start_screen(self, ctx, _frame),
             Screen::Working => work_screen(self, ctx, _frame),
-            Screen::Rest => rest_screen(),
+            Screen::Rest => rest_screen(self, ctx, _frame),
             Screen::Finish => finish_screen(),
         }
     }
