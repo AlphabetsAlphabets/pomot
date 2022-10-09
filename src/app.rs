@@ -109,15 +109,18 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
             ui.label("\n\n\n");
 
+            ui.label("Close the study door, for the work begins.");
+
             let elapsed = app.now.unwrap().elapsed().as_secs();
             let total_time = app.work_time.as_secs();
             let time_left = total_time.saturating_sub(elapsed);
             if time_left == 0 {
-                app.session_count -= 1;
-                if app.session_count == 0 {
-                    app.screen = Screen::Finish;
-                }
-
+                // Has issues transitioning to rest screen.
+                // This actually causes it is swap between the rest and work screen
+                // This happens so fast it makes it look like the user is in the work screen.
+                // Which results in `session_count` constantly getting decremented
+                // This causes the i8 to overflow because it keeps decrementing past the limits
+                // Which breaks the entire program.
                 app.screen = Screen::Rest;
             }
 
@@ -176,6 +179,7 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 
             ui.label("\n\n\n");
 
+            ui.heading("Time for a rest!");
             let time_left: String = if time_left >= 60 {
                 format!("{}m", (time_left / 60))
             } else {
