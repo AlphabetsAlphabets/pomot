@@ -6,6 +6,7 @@ enum Screen {
     Rest,
     Working,
     Finish,
+    Pause,
 }
 
 fn start_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -134,7 +135,7 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
                     .color(Color32::LIGHT_BLUE));
 
                 if pause.clicked() {
-                    println!("Paused!");
+                    app.screen = Screen::Pause;
                 }
 
                 let stop = columns[1]
@@ -196,23 +197,13 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             ui.heading(time_left.clone());
 
             ui.label("\n\n\n");
-            ui.columns(2, |columns| {
-                let pause = columns[0]
-                    .button(RichText::new("Pause")
-                    .color(Color32::LIGHT_BLUE));
+            let stop = ui
+                .button(RichText::new("Stop")
+                .color(Color32::LIGHT_BLUE));
 
-                if pause.clicked() {
-                    println!("Paused!");
-                }
-
-                let stop = columns[1]
-                    .button(RichText::new("Stop")
-                    .color(Color32::LIGHT_BLUE));
-
-                if stop.clicked() {
-                    app.screen = Screen::Start;
-                }
-            });
+            if stop.clicked() {
+                app.screen = Screen::Start;
+            }
 
             if time_left == "0s" {
                 app.now = Some(Instant::now());
@@ -240,6 +231,27 @@ fn finish_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame)
 
             if elapsed >= 8 {
                 app.screen = Screen::Start;
+            }
+        });
+    });
+}
+
+fn pause_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        // The central panel the region left after adding TopPanel's and SidePanel's
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.heading("Pomodoro Timer");
+            ui.hyperlink_to(
+                "Made by AlphabetsAlphavets",
+                "https://github.com/AlphabetsAlphabets",
+            );
+
+            ui.label("\n\n\n");
+
+            ui.heading("Taking a break? You must have something important that came up.");
+
+            if ui.button("Resume.").clicked() {
+                app.screen = Screen::Working;
             }
         });
     });
@@ -314,6 +326,7 @@ impl eframe::App for App {
             Screen::Working => work_screen(self, ctx, _frame),
             Screen::Rest => rest_screen(self, ctx, _frame),
             Screen::Finish => finish_screen(self, ctx, _frame),
+            Screen::Pause => pause_screen(self, ctx, _frame),
         }
     }
 }

@@ -15,7 +15,7 @@ fn main() {
         }),
         ..Default::default()
     };
-
+    
     eframe::run_native(
         "Pomodoro Timer",
         native_options,
