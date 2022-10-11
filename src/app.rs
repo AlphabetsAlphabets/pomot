@@ -114,16 +114,6 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             let elapsed = app.now.unwrap().elapsed().as_secs();
             let total_time = app.work_time.as_secs();
             let time_left = total_time.saturating_sub(elapsed);
-            if time_left == 0 {
-                // Has issues transitioning to rest screen.
-                // This actually causes it is swap between the rest and work screen
-                // This happens so fast it makes it look like the user is in the work screen.
-                // Which results in `session_count` constantly getting decremented
-                // This causes the i8 to overflow because it keeps decrementing past the limits
-                // Which breaks the entire program.
-                app.screen = Screen::Rest;
-            }
-
             let time_left: String = if time_left >= 60 {
                 format!("{}m", (time_left / 60))
             } else {
@@ -135,7 +125,7 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             // The timer still sticks, it just won't update visually. 
             // The fix is to request egui to repaint the UI.
             ui.ctx().request_repaint();
-            ui.heading(time_left);
+            ui.heading(time_left.clone());
 
             ui.label("\n\n\n");
             ui.columns(2, |columns| {
@@ -156,6 +146,16 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
                 }
             });
 
+            if time_left == "0s" {
+                app.screen = Screen::Rest;
+                // `Some(Instant::now())` is very important. Without this the screens will very quickly
+                // bounce between work and rest screen. Because without it `app.now` remains the same.
+                // When transitioning to the `rest_screen` function, it does the same math. WHich means that
+                // `time_left` is still at "0s" the if statement would turn true and `app.screen = Screen::Working`.
+                // This happens in `work_screen` too. Resulting in the very fast back and forth switching.
+                app.now = Some(Instant::now());
+                return;
+            }
         });
     });
 }
@@ -170,16 +170,13 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
                 "https://github.com/AlphabetsAlphabets",
             );
 
-            let elapsed = app.now.unwrap().elapsed().as_secs();
-            let total_time = app.work_time.as_secs();
-            let time_left = total_time.saturating_sub(elapsed);
-            if time_left == 0 {
-                app.screen = Screen::Working;
-            }
-
             ui.label("\n\n\n");
 
-            ui.heading("Time for a rest!");
+            ui.label("Rest time.");
+
+            let elapsed = app.now.unwrap().elapsed().as_secs();
+            let total_time = app.rest_time.as_secs();
+            let time_left = total_time.saturating_sub(elapsed);
             let time_left: String = if time_left >= 60 {
                 format!("{}m", (time_left / 60))
             } else {
@@ -191,7 +188,7 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             // The timer still sticks, it just won't update visually. 
             // The fix is to request egui to repaint the UI.
             ui.ctx().request_repaint();
-            ui.heading(time_left);
+            ui.heading(time_left.clone());
 
             ui.label("\n\n\n");
             ui.columns(2, |columns| {
@@ -212,6 +209,10 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
                 }
             });
 
+            if time_left == "0s" {
+                app.screen = Screen::Working;
+                return;
+            }
         });
     });
 }
