@@ -173,7 +173,7 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.heading("Pomodoro Timer");
             ui.hyperlink_to(
-                "Made by AlphabetsAlphavets",
+                "Made by AlphabetsAlphabets",
                 "https://github.com/AlphabetsAlphabets",
             );
 
