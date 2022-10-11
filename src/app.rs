@@ -147,14 +147,19 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             });
 
             if time_left == "0s" {
-                app.screen = Screen::Rest;
-                // `Some(Instant::now())` is very important. Without this the screens will very quickly
-                // bounce between work and rest screen. Because without it `app.now` remains the same.
-                // When transitioning to the `rest_screen` function, it does the same math. WHich means that
-                // `time_left` is still at "0s" the if statement would turn true and `app.screen = Screen::Working`.
-                // This happens in `work_screen` too. Resulting in the very fast back and forth switching.
-                app.now = Some(Instant::now());
-                return;
+                app.session_count = app.session_count.saturating_sub(1);
+                if app.session_count == 0 {
+                    app.now = Some(Instant::now());
+                    app.screen = Screen::Finish;
+                } else {
+                    app.screen = Screen::Rest;
+                    // `Some(Instant::now())` is very important. Without this the screens will very quickly
+                    // bounce between work and rest screen. Because without it `app.now` remains the same.
+                    // When transitioning to the `rest_screen` function, it does the same math. WHich means that
+                    // `time_left` is still at "0s" the if statement would turn true and `app.screen = Screen::Working`.
+                    // This happens in `work_screen` too. Resulting in the very fast back and forth switching.
+                    app.now = Some(Instant::now());
+                }
             }
         });
     });
@@ -210,14 +215,35 @@ fn rest_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
             });
 
             if time_left == "0s" {
+                app.now = Some(Instant::now());
                 app.screen = Screen::Working;
-                return;
             }
         });
     });
 }
 
-fn finish_screen() {}
+fn finish_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        // The central panel the region left after adding TopPanel's and SidePanel's
+        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.heading("Pomodoro Timer");
+            ui.hyperlink_to(
+                "Made by AlphabetsAlphavets",
+                "https://github.com/AlphabetsAlphabets",
+            );
+
+            ui.label("\n\n\n");
+
+            ui.heading("Congraulations! Go relax! Play a game, watch a TV show. You deserve it!");
+
+            let elapsed = app.now.unwrap().elapsed().as_secs();
+
+            if elapsed >= 8 {
+                app.screen = Screen::Start;
+            }
+        });
+    });
+}
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -287,7 +313,7 @@ impl eframe::App for App {
             Screen::Start => start_screen(self, ctx, _frame),
             Screen::Working => work_screen(self, ctx, _frame),
             Screen::Rest => rest_screen(self, ctx, _frame),
-            Screen::Finish => finish_screen(),
+            Screen::Finish => finish_screen(self, ctx, _frame),
         }
     }
 }
