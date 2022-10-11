@@ -135,6 +135,7 @@ fn work_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) {
                     .color(Color32::LIGHT_BLUE));
 
                 if pause.clicked() {
+                    app.pause_time = Duration::from_secs(elapsed);
                     app.screen = Screen::Pause;
                 }
 
@@ -250,7 +251,11 @@ fn pause_screen(app: &mut App, ctx: &egui::Context, _frame: &mut eframe::Frame) 
 
             ui.heading("Taking a break? You must have something important that came up.");
 
-            if ui.button("Resume.").clicked() {
+            ui.label("\n\n\n");
+
+            if ui.button("Resume").clicked() {
+                app.work_time -= app.pause_time;
+                app.now = Some(Instant::now());
                 app.screen = Screen::Working;
             }
         });
@@ -265,6 +270,8 @@ pub struct App {
     rest: String,
     sessions: String,
 
+    #[serde(skip)]
+    pause_time: Duration,
     #[serde(skip)]
     now: Option<Instant>,
     #[serde(skip)]
@@ -282,6 +289,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
+            pause_time: Duration::from_secs(0),
             now: None,
             warning: None,
             screen: Screen::Start,
